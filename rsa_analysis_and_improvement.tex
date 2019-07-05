@@ -1,0 +1,344 @@
+% \documentclass[10pt,a4paper]{ctexart} % 引入文档类
+\documentclass[UTF8]{ctexart}
+% \usepackage[space]{ctex} % 引入ctex宏包
+\usepackage{amsmath}
+\usepackage{geometry} % 设置纸张大小和页边距
+\usepackage{amssymb} % 数学符号
+\usepackage{amsthm} % 证明环境
+\usepackage{booktabs} % 绘制三线表
+
+\geometry{a4paper, margin = 1in}
+\title{RSA加密算法的分析与改进}
+\author{褚有刚\thanks{学号：171860526}\thanks{邮箱：ajeo0526@gmail.com}}
+\date{\today}
+\bibliographystyle{plain} % 设置参考文献的排版样式为plain
+
+\begin{document}
+\maketitle % 显示标题等信息
+\tableofcontents % 生成目录
+% \heiti
+% 文档摘要
+\begin{abstract}
+	RSA加密算法是目前应用最广泛的非对称加密算法，本文主要介绍了RSA加密算法的数学基础，讨论了可能的破解方法及其需要的时间，并对其安全性进行定量分析；除此之外，由于RSA加密算法在寻找大素数需要大量的计算，从而导致RSA算法的效率不高，本文给出了一些加速寻找大素数的算法，以提高RSA算法的适用性。
+\end{abstract}
+% 引言
+\section{引言}
+随着计算机网络的高速发展，我们的生活已经越来越离不开计算机网络，现在人们普遍将其作为信息传输的媒介，但是在互联网上传输信息存在许多不安全的因素，为了防止信息假冒，篡改和泄露，目前广泛采用的举措是对信息进行加密，通信双方使用密文进行消息传递，只要攻击者无法在要求的时间内破译密文，数据就可以认为是安全的，目前的加密机制主要有对称密钥机制和非对称密钥机制，非对称密钥机制在加密以及数字签名之中都有不可替代的优越性，RSA算法是其中的典型代表。
+
+% 第一部分
+\section{数学基础}
+
+RSA算法是一个基于初等数论定理的公钥密码体制算法，所以在正式给出RSA算法需要介绍一些数论基础知识.
+
+\subsection{素数}
+
+\begin{quote}
+	\textbf{素数}（Prime number），又称\textbf{质数}，指在大于1的自然数中，除了1和该数自身外，无法被其他自然数整除的数（也可定义为只有1与该数本身两个正因数的数）。大于1的自然数若不是素数，则称之为合数（也称为合成数）。
+\end{quote}
+
+需要注意的是，1不是素数，欧几里得\footnote{欧几里得（前325年—前265年），希腊划时代的数学家，被称为“几何学之父”}在《几何原本》\footnote{《几何原本》（Stoicheia）是古希腊数学家欧几里得所著的一部数学著作，共13卷。}中提出了算术基本定理:
+
+\begin{quote}
+	\textbf{算术基本定理}，又称为\textbf{正整数的唯一分解定理}，即：每个大于1的自然数，要么本身就是质数，要么可以写为2个或以上的质数的积，而且这些质因子按大小排列之后，写法仅有一种方式。
+\end{quote}
+
+为了确保该定理的唯一性，1被定义不是素数，因为在因式分解中可以有任意多个1（如3、1×3、1×1×3等都是3的有效约数分解）。
+
+算术基本定理确立了素数在自然数中独一无二的地位，欧几里得认为素数是数的基础，同时期还有一位哲学家德谟克里特\footnote{德谟克利特（前460年—前370年或前356年）(英语：Democritus)来自古希腊爱琴海北部海岸的自然派哲学家}提出了原子论，他认为每一种事物都是由原子所组成的，整个世界的本质只是原子和虚空。原子不可分割，并不完全一样。素数就像是自然数的原子一样，无法进行进一步的分解。
+
+素数有许多很好的性质，其中很多性质都是RSA算法的基础，下面做简要介绍：
+
+\subsubsection{素数的数目}
+
+早在公元前5世纪毕达哥拉斯学派就给出了素数的数目有无穷多个证明，欧几里得将该证明收录在他的著作《几何原本》，被后世称为欧几里得定理，证明的大意如下：
+
+\begin{proof}
+	\begin{enumerate}
+		\item 对任何有限的素数集合$\{p_1, p_2, \dots , p_n\}$，证明至少存在一个素数$q$不属于这个集合;
+
+		\item 令$P = p_1 \cdot p_2 \cdots p_n, q = P + 1$
+		      \begin{itemize}
+			      \item 如果q是素数，则至少存在一个素数$q$满足$q\notin\{p_1, p_2, \dots, p_n\}$;
+			      \item 如果q不是素数，则至少存在一个素数$p\in\{p_1, p_2,\dots, p_n\}$满足$p|q$，由于$p|P$，则$p|(q-P)$，即$p|1$，由于没有素数能够整除1，所以$p \notin \{p_1, p_2, \dots, p_n\}$中;
+		      \end{itemize}
+		\item 综上，对于任何一个有限的素数集，都至少有一个素数不属于这个集合，因此素数有无穷多个.
+	\end{enumerate}
+\end{proof}
+
+证明素数有无穷多个的方式有许多种，上面是最早记录在史料中的证明方式.
+
+莱昂哈德 $\cdot$ 欧拉在1735年解决巴塞尔问题的同时对该问题进行了发散性的思考，并借此提出了全新的一种证明素数有无穷多个的方法，考虑如下的无穷级数:
+
+\begin{equation}
+	\zeta(s) = \sum_{n=1}^{\infty}\frac{1}{n^s} = \frac{1}{1^s} + \frac{1}{2^s} + \frac{1}{3^s} + \cdots \label{euler_formula1} % label给公式添加标签，方便引用
+\end{equation}
+
+两边同时乘以$\frac{1}{2^s}$，得到下式：
+
+\begin{equation}
+	\frac{1}{2^s}\zeta(s) = \frac{1}{2^s}\sum_{n=1}^{\infty}\frac{1}{n^s} = \frac{1}{2^s} + \frac{1} {4^s} + \frac{1}{6^s} + \cdots    \label{euler_formula2}
+\end{equation}
+
+用 \eqref{euler_formula1} - \eqref{euler_formula2}，得到下式：
+\begin{gather}
+	(1 - \frac{1}{2^s})\zeta(s) = (1 - \frac{1}{2^s})\sum_{n=1}^{\infty}\frac{1}{n^s} = \frac{1}{1^s} + \frac{1}{3^s} + \frac{1}{5^s} + \cdots \label{euler_formula3}\\
+	\frac{1}{3^s}(1 - \frac{1}{2^s})\zeta(s) = \frac{1}{3^s}(1 - \frac{1}{2^s})\sum_{n=1}^{\infty}\frac{1}{n^s} = \frac{1}{3^s} + \frac{1}{9^s} + \frac{1}{15^s} + \cdots \label{euler_formula4}
+	% \text{用 \eqref{euler_formula3} - \eqref{euler_formula4}}
+\end{gather}
+
+用 \eqref{euler_formula3} - \eqref{euler_formula4}, 得到下式：
+\begin{equation}
+	(1 - \frac{1}{3^s})(1 - \frac{1}{2^s})\zeta(s) = (1 - \frac{1}{3^s})(1 - \frac{1}{2^s})\sum_{n=1}^{\infty}\frac{1}{n^s} = \frac{1}{1^s} + \frac{1}{5^s} + \frac{1}{7^s} + \cdots \label{euler_formula5}
+\end{equation}
+
+重复上述步骤，最终得到下式：
+\begin{equation}
+	\Pi_{p \in P\footnotemark}(1 - \frac{1}{p^s})\zeta(s) = 1 \label{euler_product}
+\end{equation}
+\footnotetext{P是所有素数的集合}
+
+\eqref{euler_product} 被称为欧拉乘积式.
+
+\begin{equation}
+	\zeta(s) = \Pi_{p \in P}(1 - \frac{1}{p^s})^{-1} \label{euler_product2}
+\end{equation}
+
+当$s = 1$时，\eqref{euler_product2} 变为：
+\begin{equation}
+	\Pi_{p \in P}(1 - \frac{1}{p})^{-1} = \zeta(1) = 1 + \frac{1}{2} + \frac{1}{3} + \cdots \label{euler_product3}
+\end{equation}
+
+\eqref{euler_product3} 的右边为调和级数\footnote{调和级数（英语：Harmonic series）是一个发散的无穷级数。}，由于调和级数发散，所以素数有无穷多个.
+
+\qed
+
+\subsubsection{素数测试}
+
+在RSA算法中需要使用到随机的大素数，这就涉及到了如何确定一个数是否为素数，常用的方法为试除法，但是效率很低，没有什么实际用处，另有一类更有效率的测试方法，但是只能适用于特定的数字之上。
+
+\begin{itemize}
+	\item
+	      试除法\\
+	      测试$n$是否为素数的最基本的方法为试除法，该算法将$n$依次除以每一个大于1且小于等于$n$的平方根的自然数$m$，如果存在一个自然数m满足$m|n$，则$n$为合数，否则$n$为素数，实际上，若$n$为合数，不妨设n可以写作$n = a \cdot b$，则$a$与$b$中必然至少有一个数字不大于$\sqrt{n}$，否则假设$a > \sqrt{n}$且$b > \sqrt{n}$，则$a \cdot b > n$与$a \cdot b = n$矛盾. % ，因此算法的时间复杂度为$o(\sqrt{n})$;
+
+	\item
+	      筛法\\
+	      \textbf{埃拉托斯特尼\footnote{埃拉托斯特尼（英语：Eratosthenes，前276年－前194年，出生于昔兰尼，即现利比亚的夏哈特；逝世于托勒密王朝的亚历山大港），古希腊数学家、地理学家、历史学家、诗人、天文学家。埃拉托斯特尼最重要的贡献是设计出经纬度系统，计算出地球的直径}筛法}是列出所有小素数最有效的方法之一，其名字来自于古希腊数学家埃拉托斯特尼，所使用的原理是从2开始，将每个素数的各个倍数，标记成合数。一个素数的各个倍数，是一个差为此素数本身的等差数列。此为这个筛法和试除法不同的关键之处，后者是以素数来测试每个待测数能否被整除.
+
+	\item
+	      费马\footnote{皮埃尔·德·费马（姓氏依发音亦作费尔玛。Pierre de Fermat，1601年8月17日－1665年1月12日），法国律师、业余数学家（也被称为数学大师、业余数学家之王）。他在数学上的成就不低于职业数学家，似乎对数论最有兴趣，亦对现代微积分的建立有所贡献。}小定理和费马素性测试\\
+	      \textbf{费马小定理}是这样的一个定理：假如$a$是一个整数，$p$是一个素数，那么$a^p-a$是$p$的倍数，可以表示为：
+	      \[
+		      a^p \equiv a \pmod{p}
+	      \]
+	      如果$a$不是$p$的倍数，这个定理也可以写作：
+	      \[
+		      a^{p-1} \equiv 1 \pmod{p}
+	      \]
+
+	      下面使用二项式定理证明费马小定理：
+	      \begin{proof}
+		      考虑二项式系数$\binom{p}{a} = \frac{p!}{a!(p-a)!}$ ，其中$p$为素数，如果$a$不为0且不为$p$，则$p | \binom{p}{a}$ ，因此有：
+		      \begin{equation}
+			      (x+1)^p \equiv x^p + 1 (mod \ p) \label{binom_lemma}
+		      \end{equation}
+		      下证$a^p \equiv a(mod \ p)$, $p$为素数
+
+		      使用数学归纳法对$a$进行归纳
+		      \begin{description}
+			      \item[\emph{Base Case}] \qquad 当$a = 1$时，$a^p \equiv a \equiv 1(mod \ p)$
+			      \item[\emph{Induction Princple}] \qquad 当$a < k$时$a^p \equiv a(mod \ p)$
+			      \item[\emph{Induction Step}] \qquad 当$a = k$时，由 \eqref{binom_lemma} ，令$x = k$有$(k+1)^p \equiv k^p + 1(mod \ p)$，由I.H，知$k^p \equiv k(mod \ p)$，两式相加，得到:
+			            \[
+				            (k+1)^p + k^p \equiv k^p + k + 1(mod \ p)
+			            \]
+			            即$(k+1)^p \equiv k+1(mod \ p)$
+		      \end{description}
+	      \end{proof}
+
+	      根据费马小定理，若想要测试一个数字$p$是否为素数，则可随机选择$n$来检验$n^p -n$能否被$p$整除即可。这个测试的缺点在于有些合数（卡迈克尔数\footnote{在数论上，卡迈克尔数是正合成数$n$，且使得对于所有跟$n$互素的整数$b$，$b^{n-1}\equiv 1{\pmod {n}}$}）即使不是素数，也会符合费马恒等式，因此这个测试无法辨别素数与卡迈克尔数，最小的三个卡迈克尔数为561，1105，1729。卡迈克尔数比素数还少上许多，所以这个测试在实际应用上还是有用的。
+\end{itemize}
+
+\subsection{欧拉定理}
+\subsubsection{欧拉函数}
+$\phi(n)$称为欧拉函数 \footnote{莱昂哈德·欧拉（德语：Leonhard Euler，台湾旧译尤拉，1707年4月15日－1783年9月18日）是一位瑞士数学家和物理学家，近代数学先驱之一，他一生大部分时间在俄国和普鲁士度过。}，表示的是自然数中不大于$n$的与$n$互质的自然数的个数.
+
+欧拉函数具有以下性质：
+\begin{enumerate}
+	\item 如果$n = p^k$($p$为一个素数)，则:
+	      \[
+		      \phi(n) = \phi(p^k) = p^k - p^{k-1} = p^k(1 - \frac{1}{p})
+	      \]
+	      根据算数基本定理，由于$n$的唯一的质因子分解形式为$p^k$，对于其他的自然数$m(< n)$，如果$gcd(m,n) \neq 1$，则$m$的质因子分解中必然包含$p$，即$m$必然为$p$的倍数形式，这样的数字共有$p^{k-1}$个，即$1 \cdot p, 2 \cdot p, \cdots,$$ p^{k-1} \cdot p$，其他的数字都和$p^k$互素，因此根据$\phi$函数的定义有$\phi(p^k) = p^k - p^{k-1}$.
+	\item 欧拉函数是积性函数\\
+	      如果$gcd(m,n) = 1$，则$\phi(mn) = \phi(m) \cdot \phi(n)$.
+	      这条定理在证明的过程中使用到了\textbf{中国剩余定理}，证明较为繁杂，不赘述.
+	\item 根据算数基本定理，每个数字都能够唯一地分解为一系列质因子的乘积
+	      \[
+		      n = p_1^{k_1}p_2^{k_2} \cdots p_r^{k_r}
+	      \]
+	      这里$p_1 < p_2 < \cdots < p_r$
+
+	      根据性质2
+	      \begin{align*}
+		      \phi(n) & = \phi(p_1^{k_1}p_2^{k_2} \cdots p_r^{k_r})            \\
+		              & = \phi(p_1^{k1})\phi(p_2^{k_2}) \cdots \phi(p_r^{k_r})
+	      \end{align*}
+	      再根据性质1
+	      \[
+		      \phi(n) = p_1^{k_1}p_2^{k_2} \cdots p_r^{k_r}(1 - \frac{1}{p_1})(1-\frac{1}{p_2}) \cdots (1 - \frac{1}{p_r})
+	      \]
+	      因此对于一个整数$n$，如果我们能够得到其质因子分解形式，那么就可以得到$\phi(n)$的值.
+	      该性质以下两种形式比较重要:
+	      \begin{itemize}
+		      \item 当$n$为素数的时候，$\phi(n) = n(1 - \frac{1}{n}) = n - 1$,
+		      \item 当$n$为两个素数乘积($n = p q$)的时候，$\phi(n) = pq(1 - \frac{1}{p})(1- \frac{1}{q}) = (p-1)(q-1)$.
+	      \end{itemize}
+\end{enumerate}
+
+\subsubsection{欧拉定理}
+在数论中，欧拉定理（也称费马-欧拉定理或欧拉$\phi$函数定理）是一个关于同余的性质，欧拉定理表明，若$n$,$a$为正整数，且$n$和$a$互素$(gcd(n,a) = 1))$，则：
+\[
+	a^{\phi(n)} \equiv 1 (mod \ n)
+\]
+即$a^{\phi(n)}$与1在模$n$下同余
+
+欧拉定理的证明过于复杂，这里不赘述.
+
+当$n$为素数的时候，欧拉定理的形式为
+\[
+	a^{\phi(n)} = a^{n-1} = 1 (mod \ n)
+\]
+即费马小定理.
+
+\section{RSA算法}
+
+\subsection{密钥生成}
+首先我们需要明确，无论什么报文最终在计算机中都是表示为二进制的形式，所以我们所谓的加密信息就是加密一串数字，解密信息也就是解密一串数字.
+
+RSA加密算法的具体算法流程如下：
+\begin{enumerate}
+	\item 随机生成两个大素数$p$和$q$，RSA实验室推荐，公司使用时，$p$和$q$的乘积为1024比特的数量级；
+	\item 计算$n$和$\phi(n)$，其中$n = p \cdot q, \phi(n) = \phi(pq) = (p-1)(q-1)$；
+	\item 求出一个数$d$，使得
+	      \[
+		      ed \equiv 1 \pmod{\phi(n)}
+	      \]
+	      即$d$为$e$关于$\phi(n)$的模逆元；
+	\item 生成的公钥为$(n, e)$，私钥为$(n, d)$.
+\end{enumerate}
+
+\subsection{通信流程}
+假设Alice想要和Bob通信，Alice生成的公钥为$(n,e)$，私钥为$(n,d)$
+Bob需要给Alice发送报文$m$，使用$<n,e>$进行加密，密文$c = m^ e \ mod \ n$，
+Alice使用$<n,d>$进行解密，明文$m = c^d \  mod \ n$.
+
+RSA的工作原理：
+\begin{gather*}
+	\because c = m^e \ mod \ n\\
+	\therefore c = m^e + kn \tag{k is a constant}\\
+	\therefore c^d = (m^e + kn) ^d = m^{ed} + k'n \tag{k' is a constant}\\
+	\because ed \equiv 1\pmod{\phi(n)}\\
+	\therefore ed = h\phi(n) + 1 \tag{h is a constant}\\
+	\therefore c^d  = m^{h\phi(n)+1} + k'n\\
+	\therefore c^d = m \cdot (m ^{\phi(n)})^h + k'n\\
+	\because gcd(n,m) = 1\\
+	\therefore m^{\phi(n)} \equiv 1\pmod{n} \tag{Euler Theroem}\\
+	\therefore m^{\phi(n)} = 1 + ln \tag{l is a constant}\\
+	\therefore  c^d = m \cdot (1 + ln)^h + k'n\\
+	\therefore c^d = m \cdot (1+k''n) + k'n \tag{k'' is a constant}\\
+\end{gather*}
+\begin{gather*}
+	\therefore c^d = m + k'''n \tag{k''' is a constant}\\
+    \therefore c^d \equiv m \pmod{n}
+\end{gather*}
+\qed
+
+一个使用RSA算法加密的例子：
+
+取两个素数$p = 11, q = 13$，$p$和$q$的乘积为$n = p \times q = 143$，算出$\phi(n) = (p-1) \times (q-1) = 120$；再选取一个与$\phi(n)$互质的数$e = 7$，则公钥为<n, e> = <143, 7>;
+
+对于e值，使用欧几里得扩展算法可以算出其逆：$d = 103$，验证$(e \times d) \mod \phi(n) = (7 \times 103) \mod 120 = 1$成立，则私钥为<n, d> = <143, 103>;
+
+假设发送方要发送的明文$m = 85$，发送方已经得到了接收方的公钥为<143, 7>，于是发送方算出加密后的密文$c = m^e \mod n = 85^7 \mod 143 = 123$并发送给接收方;
+
+接收方收到报文之后使用私钥进行解密：$c^d \mod n = 123^{103} \mod 143 = 85$，所以接收方可以得到发送方发送给他的真实信息$m$，实现了安全通信。
+
+在实际使用的过程中m值的长度一般要远大于n的长度，因此实际加密m时，需要首先把m分成比n小的数据分组，再对每组单独加密和解密。
+
+\subsection{RSA算法的加密强度}
+
+目前密码的破译主要有两种方法，方法之一是密钥穷举法，方法之二是密码分析法. 由于RSA加密和解密过程都是用指数计算，其计算工作量巨大，以现代计算机的算力，可以认为使用密钥穷举法破解是根本不可能的，因此要对RSA算法加密后的信息进行破译只能采用密码分析法，常用的一种途径是想办法计算出d，下面证明计算出d和对n进行质因数分解具有相同的难度：
+
+\begin{proof}
+    "$\Rightarrow$":
+    如果能够通过不对n进行大数分解确定d，那么分解对n进行质因数分解就变得容易起来.
+    如果我们知道$\phi(n)$，根据$\phi(n) = (p-1)(q-1)$和$n = p \times q$，就可以得到$p + q = n - \phi(n) - 1$，进而通过求解一个一元二次方程就可以得到$p$和$q$，分解n完成.
+
+    G.L.Miler在1975年指出，利用$\phi(n)$的任何倍数都可以轻松分解出$n$的因子.因此根据$ed \equiv 1 \pmod{\phi(n)}$，可以得到一个$\phi(n)$的倍数$ed - 1$，也就是说只要计算出d就能够完成对$n$的质因数分解.
+
+    "$\Leftarrow$":
+    如果能够对$n$进行质因数分解得到$p$和$q$，那么根据$\phi(n) = p \times q$既可以得到$\phi(n)$，进而通过$ed \equiv 1 \pmod{\phi(n)}$得到$d$，也就是说破解RSA密码不会比对$n$进行质因数分解更困难.
+\end{proof}
+
+综上所述，破解RSA密码和质因数分解同样困难，如果参数$p, q, e$选取恰当的话，RSA的加密强度就取决于抗因子分解强度.
+
+\subsection{大数分解的难度}
+
+大数分解是一件非常困难的事情，著名数学家费马和勒让德都曾经研究过质因数分解的算法，现代的质因数算法一般都是勒让德方法的扩展，其中，R.Schroeppel算法是比较好的算法，但是用此法对n进行质因数分解仍然需要大约$e^{\sqrt{\ln{n}\ln{\ln{n}}}}$次运算，可见分解n的运算次数随着n的位数的增加会指数倍增加，对于不同长度的二进制数n，Schroeppel算法分解n时所需的运算次数以及使用一台1s运算1亿次的计算机破解所需要的时间如表 \ref{tab:operation} 所示：
+
+\begin{table}[htbp]
+\centering
+\caption{使用\emph{Schroeppel}算法分解因子需要的运算次数} \label{tab:operation}
+\begin{tabular}{ccccc}
+\toprule
+n的二进制位数   &   256 &   512 &   1024    &   2048\\
+\midrule
+运算次数       &    $1.4627 \times 10^{13}$ & $6.6869 \times 10^{19}$ &$4.4237 \times 10^{29}$ & $1.2113 \times 10^{44}$\\
+\midrule
+破解时间/年	   &	$4.6382 \times 10^{-3}$ & $2.1204 \times 10^{4}$ & $1.4028 \times 10^{14}$ & $3.8411 \times 10^{28}$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+RSA算法的可靠性依赖于大数分解的难度，换言之，对一个极大整数做质因数分解愈困呐，RSA算法愈可靠，如果能够找到一个快速质因数分解的算法，那么RSA算法将不再可靠，但是质因数分解一般被认为是NPC问题，尽管还并未再理论上论证，但是经过千百年来的众多学者研究，迄今为止还没有找到一个有效的算法，目前破解RSA密码只能依赖于现代的计算机技术，随着近年来计算机运算速度以及并行计算技术的发展，破解低位的RSA密码已经称为可能，但是只要n的长度达到一定要求，RSA加密仍然是相当安全的.
+
+\subsection{改进的RSA}
+
+\subsubsection{RSA算法存在的问题}
+RSA算法虽然安全性好，但是它也存在一些不足之处：
+\begin{enumerate}
+	\item 需要经过大量的计算来计算密钥，而且在加密和解密的过程中，都需要计算某一个整数的模$n$的整数次幂，需要较高的计算开销；
+	\item 目前尚没有较好的方法生成两个大素数$p$和$q$，一般使用随机生成和素性检测的方法生成大素数，因此生成$p$和$q$的效率较低；
+	\item 为了保证RSA算法的安全性，一般使用大密钥空间，这将会进一步降低RSA算法的执行效率。
+\end{enumerate}
+\subsubsection{大素数生成方法}
+素数生成的核心问题是判断一个数是否是一个素数。目前，生成素数的方法主要有确定性素数生成和概率性素数生成，确定性素数生成的优点是能够保证生成的数一定是素数，但是这种方法生成的素数具有一定的规律性，可能会被攻击者破解；而概率性素数没有规律可循，而且速度较快，但是这样生成的数一般都是伪素数，还需要对生成数的素性进行检验。
+
+在构造RSA算法中的大素数是，一般首先利用概率性素数生成方法生成伪素数，然后再利用素性检验的办法进行检验，素性检验的步骤如下：
+
+\begin{enumerate}
+	\item \textbf{预处理} \qquad 由于进行素性检验会比较耗时，所以在进行素性检验之前，首先使用前文提及的埃拉托斯特尼筛法过滤掉一部分合数；
+	\item \textbf{素性检测} \qquad 素性检测就是判断一个整数是否为素数，前文已经提及若干办法，在实际中应用的一般是Miller Rabin算法\footnote{米勒-拉宾素性检验是一种素数判定法则，利用随机化算法判断一个数是合数还是可能是素数。}，Miller Rabin算法本质上是费马素性检验的一个变体，为了介绍Miller Rabin算法，首先介绍一下二次探测定理：
+	\begin{quote}
+		若$p$为素数，$a^2 \equiv 1 \pmod{p}$，则$a \equiv 1 \pmod{p}$或者$a \equiv p - 1 \pmod{p}$.
+	\end{quote}
+	假设要判定的数是n，Miller Rabin算法的流程如下：
+	\begin{enumerate}
+		\item 把$n-1$分解为$2^{r}m$的形式;
+		\item 随机选择一个数$a(1<a<n-1)$，计算$x = a^m \mod n$;
+		\item 重复执行 $x = x^2$ r次，同时结合二次探测定理进行判断：如果自乘之后的数满足$\mod{n} = 1$，但是之前的数不满足$\mod{n} = 1$且不满足$\mod{n} = p-1$，则说明$n$是合数；
+		\item 执行r次之后如果$a^{r-1} \mod n \ne 1$，则同样说明$n$是合数.
+	\end{enumerate}
+
+	Miller Rabin算法并不能够保证通过测试的数一定是素数，但是通过多次检测就能够使得错误率足够低，据统计，使$n$通过以$a(1 < a < n)$的Miller Rabin算法测试的概率约为$\frac{1}{4}$，选取$k$个小于$n$的正整数进行测试，$k$次测试全部通过的概率仅为$\frac{1}{4^k}$，当$k$足够大的时候，可以认为该事件发生的概率足够小。
+
+	\item \textbf{素数验证} \qquad 采用Pocklington定理\footnote{普罗斯定理是数论的一个定理，可以判断普罗斯数(普罗斯数，也就是满足$k2^n + 1$形式的数)是否是质数}对通过前面计算得到的伪素数进行验证.
+\end{enumerate}
+
+在使用上述算法生成大素数的过程中，首先使用了埃拉托斯特尼筛法排除掉绝大多数合数，再使用多次Miller Rabin算法进行素性检测，如果测试次数足够多，基本上可以判定得到的数就是素数，同时配合Pocklington定理，可以进一步提高素数的可靠性。
+
+\nocite{*} % 没有引用的文献也全部输出
+\bibliography{cite} % 在此输出cite.bib数据库的所有参考文献条目
+
+\end{document}
